@@ -1,3 +1,5 @@
+import re
+
 import pandas as pd
 from xAPIConnector import *
 import time
@@ -8,7 +10,7 @@ import config
 
 class XtbTrader():
     
-    def __init__(self, client, ssid, instrument, interval, lookback, strategy, units, end):
+    def __init__(self, client, ssid, instrument, interval, lookback, strategy, units, end, csv_results_path='/home/slawomir/PycharmProjects/XtbTrader/'):
         
         '''
         
@@ -25,7 +27,7 @@ class XtbTrader():
         *strategy -> name of defined strategy in python,
         *units -> float number of units of given instrument
         *end -> str, date time when trading session shoud be terminated in foramt 'YYYY-mm-dd HH:MM'
-
+        *csv_results_path -> str, filepath where store dataframe with price data and trading results
 
         
         
@@ -37,6 +39,7 @@ class XtbTrader():
         self.strategy=strategy
         self.units=units
         self.end=end
+        self.csv_results_path=csv_results_path
         self.interval_dict = {'1min': 1, '5min': 5, '15min': 15, '30min': 30, '1h': 60, '4h': 240, '1D': 1440}
         self.collect_live=False
         self.live_df=pd.DataFrame()
@@ -52,9 +55,12 @@ class XtbTrader():
         self.get_last_n_candles()
         self.session_start=datetime.datetime.now()
         self.session_end=datetime.datetime.strptime(end,'%Y-%m-%d %H:%M')
+
         self.sclient = APIStreamClient(ssId=ssid, candleFun=self.procCandle)
         self.sclient.subscribeCandle(self.instrument)
         self.terminate_session=False
+        pattern = '\D'
+        self.end_to_file_name =re.sub(pattern, '', end)
         start_session_date=self.session_start.strftime("%a,%d %b, %Y, %H:%M:%S")
         print(f"START SESSION AT {start_session_date} ")
         with open('valid_xtb_symbols.json') as f:
@@ -182,7 +188,6 @@ class XtbTrader():
             record = pd.DataFrame.from_records(msg['data'], index=[pd.to_datetime(datetime.datetime.fromtimestamp(
                 msg['data']['ctm'] / 1000))])
             record=record[['open','high','low','close','vol']]
-            #recent_candle = pd.to_datetime(datetime.datetime.fromtimestamp(msg['data']['ctm']/1000))
             self.last_candle=record.resample('1min', label='right').last().index[-1]
 
 
@@ -212,11 +217,13 @@ class XtbTrader():
                         self.raw_data=pd.concat([self.raw_data, self.live_df])
                         self.live_df=pd.DataFrame()
                         self.raw_data=self.strategy(self.raw_data)
+                        self.raw_data.to_csv(f'{self.csv_results_path}{self.instrument}_{self.interval}_{self.end_to_file_name}_price_data.csv')
                         self.trade()
                 else:
 
                     self.raw_data=pd.concat([self.raw_data, record])
                     self.raw_data=self.strategy(self.raw_data)
+                    self.raw_data.to_csv(f'{self.csv_results_path}{self.instrument}_{self.interval}_{self.end_to_file_name}_price_data.csv')
                     self.trade()
 
 
@@ -226,7 +233,7 @@ class XtbTrader():
 
         Description
         ===============================================
-        Method creating new order and closing orders depends on current position and sreategy
+        Method creating new order and closing orders depends on current position and strategy
         '''
         
         df=self.raw_data.copy()
@@ -405,6 +412,7 @@ class XtbTrader():
                                         print(f"Cumulative profit for whole trading session: {self.session_hist_df['cum_profit'].iloc[-1]}")
                                     print(f'Number of trades in session: {self.trade_counter}')
                                     print('=======================================================')
+                                    self.session_hist_df.to_csv(f'{self.csv_results_path}{self.instrument}_{self.interval}_{self.end_to_file_name}_trades_details.csv')
                                     break      
                             
                             if found_hist_order==True:
