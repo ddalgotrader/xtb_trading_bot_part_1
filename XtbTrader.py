@@ -10,7 +10,7 @@ import config
 
 class XtbTrader():
     
-    def __init__(self, client, ssid, instrument, interval, lookback, strategy, units, end, csv_results_path='/home/slawomir/PycharmProjects/XtbTrader/'):
+    def __init__(self, client, ssid, instrument, interval, lookback, strategy, units, end, csv_results_path=<PATH_TO_SAVE_CSV_RESULTS>):
         
         '''
         
