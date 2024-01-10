@@ -63,15 +63,17 @@ class XtbTrader():
         self.end_to_file_name =re.sub(pattern, '', end)
         start_session_date=self.session_start.strftime("%a,%d %b, %Y, %H:%M:%S")
         print(f"START SESSION AT {start_session_date} ")
-        with open('valid_xtb_symbols.json') as f:
-            
-            valid_symbols_dict=json.load(f)
-        
-        self.valid_symbols=valid_symbols_dict['symbols']
-        
-        if self.instrument not in self.valid_symbols:
-            raise InvalidSymbol(self.instrument, self.valid_symbols)
-            
+        try:
+            with open('valid_xtb_symbols.json') as f:
+
+                valid_symbols_dict=json.load(f)
+
+            self.valid_symbols=valid_symbols_dict['symbols']
+
+            if self.instrument not in self.valid_symbols:
+                raise InvalidSymbol(self.instrument, self.valid_symbols)
+        except FileNotFoundError:
+            pass
         if self.interval not in list(self.interval_dict.keys()):
             
             raise InvalidInterval(self.interval)
